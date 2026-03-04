@@ -61,5 +61,6 @@ Start a marimo notebook, then talk to Claude Code. The skill activates automatic
 
 ## Files
 
-- `SKILL.md` — The collaboration protocol (philosophy, turn-based workflow, guardrails)
-- `REFERENCE.md` — Tiered API recipes for interacting with the marimo kernel
+- `SKILL.md` — The collaboration protocol (philosophy, turn-based workflow, guard rails)
+- `reference/kernel-api.md` — Tiered API recipes for interacting with the marimo kernel
+- `reference/worked-example.md` — Full walkthrough of the turn-based workflow
