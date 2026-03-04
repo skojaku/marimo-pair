@@ -115,7 +115,8 @@ is the #1 rule.
 NEVER: Reload, restart, shutdown, or save the notebook. These are Tier 6 — user
 only.
 
-NEVER: Install packages without asking which manager and confirming versions.
+NEVER: Install packages without confirming with the user first. Always use
+`InstallPackagesCommand` to install packages.
 
 NEVER: Delete user cells without confirmation.
 

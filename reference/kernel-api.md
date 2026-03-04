@@ -2,64 +2,72 @@
 
 Risk-tiered recipes for the `execute_code` scratchpad. Each recipe is
 **self-contained** — include all imports and setup inline since `execute_code`
-must not introduce persistent globals.
+runs in a fresh scope every time (only kernel globals from notebook cells
+persist between calls).
 
-## Common preamble
+## Preambles
 
-Every recipe needs the kernel context. Copy these lines at the top of each call:
+Use the **minimal preamble** for read-only work (Tiers 1–2). Only pull in the
+full cell-mutation imports when you actually need to create, update, or delete
+cells (Tiers 3–5).
+
+### Minimal preamble (read-only — Tiers 1–2)
 
 ```python
 from marimo._runtime.context import get_context
 
-ctx = get_context()
-kernel = ctx._kernel
+kernel = get_context()._kernel
 graph = kernel.graph
-stream = kernel.stream
 ```
 
-## Import cheat sheet
+This is all you need to inspect cells, variables, graph health, etc.
 
-Known-good paths as of marimo 0.20.4. If an import fails, use the
-"Discovering the API" section to find the correct path for your version.
+### Cell-mutation preamble (Tiers 3–5)
 
 ```python
-# Context
 from marimo._runtime.context import get_context
-
-# AST / Compilation
 from marimo._ast.compiler import compile_cell
 from marimo._types.ids import CellId_t
+from marimo._runtime.commands import ExecuteCellCommand
+from marimo._messaging.notification import (
+    UpdateCellIdsNotification,
+    UpdateCellCodesNotification,
+    CellNotification,
+    FocusCellNotification,
+)
+from marimo._messaging.cell_output import CellOutput, CellChannel
+from marimo._messaging.serde import serialize_kernel_message
 
-# Commands (passed to kernel.run)
+kernel = get_context()._kernel
+graph = kernel.graph
+stream = kernel.stream
+
+def notify(n):
+    stream.write(serialize_kernel_message(n))
+```
+
+### Additional imports (use only when needed)
+
+```python
+# Additional commands
 from marimo._runtime.commands import (
-    ExecuteCellCommand,
     UpdateCellConfigCommand,
     ExecuteStaleCellsCommand,
     InstallPackagesCommand,
 )
 
-# Notifications (passed to stream.write via serialize)
+# Additional notifications
 from marimo._messaging.notification import (
     AlertNotification,
     BannerNotification,
-    FocusCellNotification,
-    CellNotification,
-    UpdateCellCodesNotification,
-    UpdateCellIdsNotification,
 )
-
-# Output
-from marimo._messaging.cell_output import CellOutput, CellChannel
-
-# Serialization
-from marimo._messaging.serde import serialize_kernel_message
 
 # Formatting
 from marimo._utils.formatter import DefaultFormatter
 ```
 
-These are the most common imports. There are more commands and notifications
-available — use the discovery section below to search for them.
+Known-good paths as of marimo 0.20.4. If an import fails, use the
+"Discovering the API" section to find the correct path for your version.
 
 ## Discovering the API
 
@@ -195,8 +203,21 @@ formatter = DefaultFormatter(line_length=79)
 formatted = await formatter.format({cell_id: code})
 notify(UpdateCellCodesNotification(cell_ids=[cell_id], codes=[formatted[cell_id]], code_is_stale=False))
 
-# Install packages (always ask user which manager + versions first)
-await kernel.run([InstallPackagesCommand(manager="uv", versions={"scikit-learn": "", "pandas": ">=2.0"})])
+```
+
+### Install packages
+
+Always confirm with the user before installing. Requires `InstallPackagesCommand`
+from the additional imports.
+
+```python
+# versions: empty string for latest, or a version constraint
+await kernel.run([
+    InstallPackagesCommand(
+        manager=kernel.user_config["package_management"]["manager"],
+        versions={"scikit-learn": "", "pandas": ">=2.0"},
+    )
+])
 ```
 
 ---
