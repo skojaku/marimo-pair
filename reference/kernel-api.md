@@ -17,23 +17,61 @@ graph = kernel.graph
 stream = kernel.stream
 ```
 
-To send a notification to the frontend:
+## Import cheat sheet
+
+Known-good paths as of marimo 0.20.4. If an import fails, use the
+"Discovering the API" section to find the correct path for your version.
 
 ```python
+# Context
+from marimo._runtime.context import get_context
+
+# AST / Compilation
+from marimo._ast.compiler import compile_cell
+from marimo._types.ids import CellId_t
+
+# Commands (passed to kernel.run)
+from marimo._runtime.commands import (
+    ExecuteCellCommand,
+    UpdateCellConfigCommand,
+    ExecuteStaleCellsCommand,
+    InstallPackagesCommand,
+)
+
+# Notifications (passed to stream.write via serialize)
+from marimo._messaging.notification import (
+    AlertNotification,
+    BannerNotification,
+    FocusCellNotification,
+    CellNotification,
+    UpdateCellCodesNotification,
+    UpdateCellIdsNotification,
+)
+
+# Output
+from marimo._messaging.cell_output import CellOutput, CellChannel
+
+# Serialization
 from marimo._messaging.serde import serialize_kernel_message
-stream.write(serialize_kernel_message(notification))
+
+# Formatting
+from marimo._utils.formatter import DefaultFormatter
 ```
+
+These are the most common imports. There are more commands and notifications
+available — use the discovery section below to search for them.
 
 ## Discovering the API
 
-If you're unsure what's available, explore from within `execute_code`:
+If an import fails or you need something not listed above, explore from
+within `execute_code`:
 
 ```python
-# Find where marimo is installed
 import marimo
-print(marimo.__file__)  # then use your file tools to browse the source
+print(marimo.__file__)       # browse the source with your file tools
+print(marimo.__version__)    # import paths change across releases
 
-# List all kernel commands (ExecuteCellCommand, InstallPackagesCommand, etc.)
+# List all kernel commands
 import marimo._runtime.commands as commands
 print([c for c in dir(commands) if c.endswith("Command")])
 
