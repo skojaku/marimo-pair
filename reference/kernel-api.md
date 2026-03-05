@@ -1,78 +1,18 @@
 # marimo Kernel API Reference
 
-Risk-tiered recipes for the `execute_code` scratchpad. Each recipe is
-**self-contained** — include all imports and setup inline since `execute_code`
-runs in a fresh scope every time (only kernel globals from notebook cells
-persist between calls).
+Entry point for API details. Recipes are split into focused files:
 
-## Preambles
+- [scratchpad.md](scratchpad.md) — scratchpad inspection recipes
+- [cell-operations.md](cell-operations.md) — cell mutation recipes
 
-Use the **minimal preamble** for read-only work (Tiers 1–2). Only pull in the
-full cell-mutation imports when you actually need to create, update, or delete
-cells (Tiers 3–5).
-
-### Minimal preamble (read-only — Tiers 1–2)
-
-```python
-from marimo._runtime.context import get_context
-
-kernel = get_context()._kernel
-graph = kernel.graph
-```
-
-This is all you need to inspect cells, variables, graph health, etc.
-
-### Cell-mutation preamble (Tiers 3–5)
-
-```python
-from marimo._runtime.context import get_context
-from marimo._ast.compiler import compile_cell
-from marimo._types.ids import CellId_t
-from marimo._runtime.commands import ExecuteCellCommand
-from marimo._messaging.notification import (
-    UpdateCellIdsNotification,
-    UpdateCellCodesNotification,
-    CellNotification,
-    FocusCellNotification,
-)
-from marimo._messaging.cell_output import CellOutput, CellChannel
-from marimo._messaging.serde import serialize_kernel_message
-
-kernel = get_context()._kernel
-graph = kernel.graph
-stream = kernel.stream
-
-def notify(n):
-    stream.write(serialize_kernel_message(n))
-```
-
-### Additional imports (use only when needed)
-
-```python
-# Additional commands
-from marimo._runtime.commands import (
-    UpdateCellConfigCommand,
-    ExecuteStaleCellsCommand,
-    InstallPackagesCommand,
-)
-
-# Additional notifications
-from marimo._messaging.notification import (
-    AlertNotification,
-    BannerNotification,
-)
-
-# Formatting
-from marimo._utils.formatter import DefaultFormatter
-```
-
-Known-good paths as of marimo 0.20.4. If an import fails, use the
-"Discovering the API" section to find the correct path for your version.
+Each reference file includes its own preamble with the imports you need.
+Use the minimal preamble for scratchpad work; only pull in the full
+cell-mutation imports when you need to create, update, or delete cells.
 
 ## Discovering the API
 
-If an import fails or you need something not listed above, explore from
-within `execute_code`:
+If an import fails or you need something not listed in the reference files,
+explore from within `execute_code`:
 
 ```python
 import marimo
@@ -89,139 +29,3 @@ print([n for n in dir(notification) if n.endswith("Notification")])
 ```
 
 Use this to verify import paths and discover new APIs rather than guessing.
-
----
-
-## Tier 1: Observe (read-only)
-
-```python
-# List cells with defs, refs, code
-for cid, cell in graph.cells.items():
-    print(cid, cell.defs, cell.refs, cell.code[:80])
-
-# Cell status
-for cid, cell in graph.cells.items():
-    print(cid, cell._status.state, f"stale={cell._stale.state}")
-
-# Graph health
-graph.get_multiply_defined()          # name conflicts
-graph.cycles                          # cell IDs in cycles
-graph.get_stale()                     # all stale cell IDs
-
-# Inspect variables
-for name, val in kernel.globals.items():
-    print(name, type(val).__name__, getattr(val, 'shape', ''))
-```
-
-**Don't:** Use `.state` or `.is_running` — status is on `._status.state`.
-
----
-
-## Tier 2: Validate (read-only)
-
-```python
-# Compile-check (syntax + defs/refs, no execution)
-cell = compile_cell(code, cell_id=CellId_t("test"))
-print(f"defs={cell.defs}, refs={cell.refs}")
-
-# Dry-run registration (always clean up afterward)
-cell_id = CellId_t("dry_run")
-cell = compile_cell(code, cell_id=cell_id)
-graph.register_cell(cell_id, cell)
-print(graph.get_multiply_defined(), graph.cycles)
-graph.delete_cell(cell_id)  # ALWAYS clean up
-```
-
----
-
-## Tier 3: Communicate (non-destructive)
-
-```python
-# Toast notification
-notify(AlertNotification(title="Done", description="Found 3 outliers", variant=None))
-
-# Persistent banner
-notify(BannerNotification(title="Packages needed", description="Install scikit-learn?", variant=None, action=None))
-
-# Focus a cell
-notify(FocusCellNotification(cell_id=cell_id))
-```
-
-`variant`: `None` (info) or `"danger"` (error). Banner `action`: `None` or `"restart"`.
-
----
-
-## Tier 4: Modify (medium risk, reversible)
-
-### Create & execute a cell
-
-```python
-cell_id = CellId_t("my_cell")
-cell = compile_cell(code, cell_id=cell_id)
-graph.register_cell(cell_id, cell)
-await kernel.run([ExecuteCellCommand(cell_id=cell_id, code=code)])
-
-# All 3 notifications required for UI to update
-notify(UpdateCellIdsNotification(cell_ids=list(graph.cells.keys())))
-notify(UpdateCellCodesNotification(cell_ids=[cell_id], codes=[code], code_is_stale=False))
-notify(CellNotification(cell_id=cell_id, output=CellOutput(channel=CellChannel.OUTPUT, mimetype="text/plain", data=""), status="idle"))
-```
-
-**Don't:** Skip `await` — `kernel.run()` returns a coroutine.
-**Don't:** Skip the 3 `notify()` calls — kernel works but UI shows nothing.
-
-### Other Tier 4 operations
-
-```python
-# Update cell config (disabled, hide_code, column)
-await kernel.run([UpdateCellConfigCommand(configs={cell_id: {"disabled": True}})])
-
-# Execute all stale cells
-await kernel.run([ExecuteStaleCellsCommand()])
-```
-
----
-
-## Tier 5: Restructure (high risk — confirm with user)
-
-```python
-# Move cell (reorder by sending full ID list)
-ids = list(graph.cells.keys())
-ids.remove(cell_id)
-ids.insert(0, cell_id)
-notify(UpdateCellIdsNotification(cell_ids=ids))
-
-# Delete cell
-graph.delete_cell(cell_id)
-notify(UpdateCellIdsNotification(cell_ids=list(graph.cells.keys())))
-
-# Update cell code (code_is_stale=True for drafts, False if already executed)
-notify(UpdateCellCodesNotification(cell_ids=[cell_id], codes=[new_code], code_is_stale=True))
-
-# Format cell with ruff
-formatter = DefaultFormatter(line_length=79)
-formatted = await formatter.format({cell_id: code})
-notify(UpdateCellCodesNotification(cell_ids=[cell_id], codes=[formatted[cell_id]], code_is_stale=False))
-
-```
-
-### Install packages
-
-Always confirm with the user before installing. Requires `InstallPackagesCommand`
-from the additional imports.
-
-```python
-# versions: empty string for latest, or a version constraint
-await kernel.run([
-    InstallPackagesCommand(
-        manager=kernel.user_config["package_management"]["manager"],
-        versions={"scikit-learn": "", "pandas": ">=2.0"},
-    )
-])
-```
-
----
-
-## Tier 6: Dangerous (never agent-initiated)
-
-Reload, restart, shutdown, save — **never** trigger these without explicit user request. Confirm and explain what will be lost.

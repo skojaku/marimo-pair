@@ -1,109 +1,55 @@
 # Worked Example: "I want to plot this data"
 
-This walks through the full turn-based workflow from SKILL.md.
+This walks through the scratchpad-to-cell workflow from SKILL.md.
 
-## Step 1 — Show up first
+## Step 1 — Investigate via scratchpad
 
-Create and focus the cell before any investigation:
-
-```python
-# [Agent work]
-# Investigating your data — checking variables, shapes, and imports...
-```
-
-## Step 2 — Investigate via scratchpad
-
-Run `execute_code` to inspect variables. **Immediately** update the cell:
+Run `execute_code` calls to understand the notebook state. These are invisible
+to the user — just you gathering info. Cell variables are already in scope, so
+you can inspect them directly.
 
 ```python
-# [Agent work]
-#
-# task: inspect notebook variables
-#
-# ```py
-# for name, val in kernel.globals.items():
-#     print(name, type(val).__name__, getattr(val, 'shape', ''))
-# ```
-#
-# summary: found `sales` DataFrame (1200, 4)
-# ---
+# What variables exist?
+for name, val in vars().items():
+    if not name.startswith('_'):
+        print(name, type(val).__name__, getattr(val, 'shape', ''))
 ```
 
-Run `execute_code` to check schema. Update the cell again right away:
+Output: `sales DataFrame (1200, 4)`
 
 ```python
-# [Agent work]
-#
-# task: inspect notebook variables
-#
-# ```py
-# for name, val in kernel.globals.items():
-#     print(name, type(val).__name__, getattr(val, 'shape', ''))
-# ```
-#
-# summary: found `sales` DataFrame (1200, 4)
-# ---
-#
-# task: check data schema
-#
-# ```py
-# print(kernel.globals['sales'].dtypes)
-# ```
-#
-# summary: columns — date (datetime), region (str), revenue (float), units (int)
-# ---
+# What columns?
+print(sales.dtypes)
 ```
 
-Run `execute_code` to check imports. Update again:
+Output: `date datetime64, region object, revenue float64, units int64`
 
 ```python
-# [Agent work]
-#
-# task: inspect notebook variables
-# ...
-# ---
-#
-# task: check data schema
-# ...
-# ---
-#
-# task: check available plotting libraries
-#
-# ```py
-# import sys; [m for m in sys.modules if 'plot' in m or 'altair' in m]
-# ```
-#
-# summary: altair already imported
-# ---
+# What plotting libraries are available?
+import sys
+print([m for m in sys.modules if 'plot' in m or 'altair' in m])
 ```
 
-The user sees the cell growing probe by probe — never a long pause then a dump.
+Output: `['altair', 'altair.vegalite', ...]`
 
-## Step 3 — Ask in terminal chat
+## Step 2 — Ask in chat
 
 > "Your `sales` data has date, region, revenue, and units. You already have
 > altair. What kind of plot — line chart of revenue over time? Bar chart by
 > region? Something else?"
 
-## Step 4 — Add draft code to the cell
+User says: "Line chart of revenue over time, colored by region."
+
+## Step 3 — Write and validate
+
+Compile-check the code (needs the kernel preamble for graph access):
 
 ```python
-# [Agent work]
-#
-# task: inspect notebook variables
-# ...
-# ---
-#
-# task: check data schema
-# ...
-# ---
-#
-# task: check available plotting libraries
-# ...
-# ---
+from marimo._runtime.context import get_context
+from marimo._ast.compiler import compile_cell
+from marimo._types.ids import CellId_t
 
-# Draft code:
-
+code = """
 import altair as alt
 
 chart = alt.Chart(sales).mark_line().encode(
@@ -112,9 +58,29 @@ chart = alt.Chart(sales).mark_line().encode(
     color="region:N",
 )
 chart
+"""
+
+cell = compile_cell(code, cell_id=CellId_t("test"))
+print(f"defs={cell.defs}, refs={cell.refs}")
 ```
 
-## Step 5 — Execute
+Refs include `sales` — good, that's defined in an existing cell.
 
-The log stays as comments above the code. The user can see the full
-investigation trail and the final result together.
+Test it in the scratchpad to confirm it runs:
+
+```python
+import altair as alt
+
+chart = alt.Chart(sales).mark_line().encode(
+    x="date:T", y="revenue:Q", color="region:N",
+)
+print(type(chart))  # confirm it built without error
+```
+
+## Step 4 — Create the cell
+
+Now follow `create-cell` from [cell-operations.md](cell-operations.md) to add
+it to the notebook. Then `format-cell` to clean it up with ruff.
+
+The user sees one clean cell appear with the chart rendered. The scratchpad
+investigation and validation happened behind the scenes.

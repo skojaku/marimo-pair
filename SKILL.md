@@ -13,6 +13,59 @@ description: >-
 You have MCP access to a running marimo notebook. This document defines how to
 use it as a thoughtful collaborator.
 
+## Two Modes of Working
+
+`execute_code` is your only way to interact with the notebook. It serves two
+distinct purposes:
+
+**Scratchpad** (simple): Just Python — `print(df.head())`, check data shapes,
+test a snippet. The notebook's cell variables are already in scope. Results
+come back to you — the user doesn't see them. Use this freely.
+
+Before writing any kernel-access code, read the **Kernel preamble** in
+[scratchpad.md](reference/scratchpad.md) for the correct entry point and imports.
+
+**Cell operations** (complex): Creating, editing, moving, deleting cells.
+These require careful API orchestration — compile, register, notify the
+frontend, then execute. Get it wrong and the UI desyncs.
+
+## Decision Tree
+
+| Situation | Action |
+|-----------|--------|
+| Need to read data/state | Use recipes in [scratchpad.md](reference/scratchpad.md) |
+| Need to create/edit/move/delete cells | Follow the scratchpad-to-cell workflow below, then use [cell-operations.md](reference/cell-operations.md) |
+| Unsure what API to use | See **Discovering the API** in [kernel-api.md](reference/kernel-api.md) |
+| Import path fails | See **Discovering the API** in [kernel-api.md](reference/kernel-api.md) |
+| Want a full walkthrough | Read [worked-example.md](reference/worked-example.md) |
+
+## The Scratchpad-to-Cell Workflow
+
+Before adding or editing a cell, always validate in the scratchpad first.
+Compiling and graph-checking are cheap — always do them. Running code catches
+real bugs before the user sees them.
+
+### Adding a new cell
+
+1. **Write** your code as a string
+2. **Compile-check** — verify syntax, defs, and refs (cheap, always do this):
+   ```python
+   cell = compile_cell(code, cell_id=CellId_t("test"))
+   print(f"defs={cell.defs}, refs={cell.refs}")
+   ```
+   See `compile-check` in [scratchpad.md](reference/scratchpad.md) for full recipe.
+3. **Test in scratchpad** — run the code via `execute_code` to confirm it works. If it's expensive (network request, large query), test on a subset (smaller input, LIMIT clause, fewer params)
+4. **If the code contains a network request or query**: consider asking the user before creating the cell, since execution will happen again when the cell runs. Or structure as two cells (fetch + transform) so the fetch only runs once
+5. **Create the cell** — follow `create-cell` in [cell-operations.md](reference/cell-operations.md)
+
+### Editing an existing cell
+
+1. **Read** the current cell code from the graph
+2. **Write** the modified code as a string
+3. **Compile-check** — verify the edit doesn't break defs/refs or create cycles
+4. **Test in scratchpad** — run the modified code to confirm it works
+5. **Update the cell** — follow `edit-cell` in [cell-operations.md](reference/cell-operations.md)
+
 ## Philosophy
 
 **You are a collaborator, not a code generator.** You're sitting next to someone
@@ -21,82 +74,8 @@ ideas — but it's *their* notebook.
 
 1. **The notebook is the artifact.** Build it *with* the user, not *for* them.
 2. **User steers, you navigate.** They're the domain expert. You handle code.
-3. **Turn-based, not batch.** One step at a time. Present. Wait for input.
-4. **Show your work.** Cells are checkpoints — comments, markdown, alerts.
-5. **Be present.** Create and focus your working cell before any scratchpad work.
-
-## Decision Tree
-
-| Situation | Action |
-|-----------|--------|
-| Starting a new task | Follow **Starting a Task** workflow below |
-| Continuing multi-step work | Follow **Turn-Based Working Pattern** |
-| Need to read data/state | Use Tier 1 recipes in [kernel-api.md](reference/kernel-api.md) |
-| Need to create/run a cell | Use Tier 4 recipes — always format after writing |
-| Need to restructure cells | Use Tier 5 recipes — **ask user first** |
-| Unsure what API to use | Use **Discovering the API** section in [kernel-api.md](reference/kernel-api.md) |
-| First time seeing the workflow | Read [worked-example.md](reference/worked-example.md) |
-
----
-
-## Starting a Task
-
-1. **Understand** — ask what they're trying to accomplish, not just what they asked for
-2. **Show up** — create a working cell and focus it before any investigation:
-   ```python
-   # [Agent work]
-   # Investigating your data — checking variables, shapes, and imports...
-   ```
-3. **Orient** — investigate via scratchpad, logging every probe to the cell immediately
-4. **Propose** — suggest an approach (libraries, app vs analysis mode, scope)
-5. **Agree** — get buy-in before writing code
-
-## Turn-Based Working Pattern
-
-```
-Show Up → Observe → Plan → Checkpoint → Execute → Present → Wait
-```
-
-- **Show Up**: Create/update a working cell. User must see you arrive first.
-- **Observe**: Read cell state, variables, data shapes. Use Tier 1 recipes.
-- **Plan**: Describe one step in chat.
-- **Checkpoint**: Probe in scratchpad. Log each probe to the cell immediately.
-- **Execute**: Run the cell. Always format with ruff after writing.
-- **Present**: Focus the cell, send an alert, or describe the output.
-- **Wait**: Stop. Ask what the user thinks. Never proceed without input.
-
-## Working Cell
-
-Each step gets **one cell**. Your work log lives as comments at the top of the
-code cell you're building.
-
-CRITICAL: Create and focus the cell BEFORE doing any scratchpad work. The user
-must see you arrive in the notebook before you start investigating.
-
-Sequence: create cell → focus it → run probe → update cell → repeat → add draft code.
-
-### Probe log format
-
-```python
-# task: <what we're checking>
-#
-# ```py
-# <the code we ran>
-# ```
-#
-# summary: <one-line result>
-# ---
-```
-
-Log each probe immediately after it runs — never batch them. After all probes:
-
-```python
-# Draft code:
-
-<actual python code>
-```
-
-For a full walkthrough, see [worked-example.md](reference/worked-example.md).
+3. **Balance visibility.** For a clear, specific ask — just do it. For something
+   vague or exploratory, show options in the UI or suggest approaches in chat.
 
 ## App vs Analysis Mode
 
@@ -109,30 +88,29 @@ Ask early — this shapes how you build cells.
 
 ## Guard Rails
 
-CRITICAL: Create and focus a working cell BEFORE any `execute_code` call. This
-is the #1 rule.
+NEVER: Reload, restart, shutdown, or save the notebook — these are user-only.
 
-NEVER: Reload, restart, shutdown, or save the notebook. These are Tier 6 — user
-only.
+NEVER: Write to the notebook `.py` file — no `Edit`, `Write`, `sed`, or any
+file-modification tool. The kernel owns the file; writing behind its back will
+desync state. You MAY read it (via `Read`, `Grep`, etc.) to understand existing
+code and structure.
 
-NEVER: Install packages without confirming with the user first. Always use
-`InstallPackagesCommand` to install packages.
+NEVER: Install packages without confirming with the user first.
 
 NEVER: Delete user cells without confirmation.
 
-NEVER: Create more than one cell per turn without asking.
+NEVER: Create more than one cell at a time without asking.
 
 NEVER: Modify existing user code without proposing the change first.
 
-IMPORTANT: Always format cell code with ruff after writing. See the `format-cell`
-recipe in [kernel-api.md](reference/kernel-api.md).
+IMPORTANT: When creating or updating a cell, notify the frontend BEFORE
+executing. See the `create-cell` and `edit-cell` recipes.
+
+IMPORTANT: Always format cell code with ruff after writing. See `format-cell`
+in [cell-operations.md](reference/cell-operations.md).
 
 IMPORTANT: The scratchpad shares the kernel's namespace — side effects persist.
 Clean up dry-run registrations (`graph.delete_cell`) to avoid phantom cells.
 
 IMPORTANT: `code_is_stale=True` means the frontend shows code but the kernel
 hasn't run it — use this for drafts the user should review before execution.
-
-## API Reference
-
-See [reference/kernel-api.md](reference/kernel-api.md) for tiered recipes.
