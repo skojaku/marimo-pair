@@ -2,20 +2,51 @@
 name: marimo-pair
 description: >-
   Collaboration protocol for pairing with a user through a running marimo
-  notebook via MCP. Use when the user asks you to work in, build, explore,
-  or modify a marimo notebook — or when you detect an active marimo session
-  via get_active_notebooks / execute_code tools. Do NOT use for general
-  Python scripting outside of marimo or for marimo plugin/package development.
+  notebook via bundled scripts or MCP. Use when the user asks you to work in,
+  build, explore, or modify a marimo notebook — or when you detect a running
+  marimo session by listing sessions. Do NOT use for general Python scripting
+  outside of marimo or for marimo plugin/package development.
 ---
 
 # marimo Pair Programming Protocol
 
-You have MCP access to a running marimo notebook. This document defines how to
-use it as a thoughtful collaborator.
+You can interact with a running marimo notebook via **bundled scripts** or
+**MCP**. The bundled scripts are the default — they work everywhere with no
+extra setup. The workflow is identical either way; only the execution method
+differs.
+
+## Prerequisites
+
+The marimo server must be started with token and skew protection disabled:
+
+```bash
+marimo edit notebook.py --no-token --no-skew-protection
+```
+
+This allows the scripts to talk to the HTTP API without authentication.
+
+## How to List Sessions and Execute Code
+
+There are two operations: **list sessions** and **execute code**. Use the
+bundled scripts — they talk directly to the marimo HTTP API with no
+dependencies beyond `bash`, `curl`, and `jq`.
+
+| Operation | Script | MCP |
+|-----------|--------|-----|
+| List sessions | `bash scripts/list-sessions.sh` | `list_sessions()` tool |
+| Execute code | `bash scripts/execute-code.sh "code"` | `execute_code(code=..., session_id=...)` tool |
+
+The scripts auto-discover sessions from the registry on disk. Use `--port`
+to target a specific server when multiple are running.
+
+If the marimo server was started with `--mcp`, you'll have MCP tools
+available as an alternative.
+
+The rest of this skill refers to "list sessions" and "execute code" generically.
 
 ## Two Modes of Working
 
-`execute_code` is your only way to interact with the notebook. It serves two
+Executing code is your only way to interact with the notebook. It serves two
 distinct purposes:
 
 **Scratchpad** (simple): Just Python — `print(df.head())`, check data shapes,
@@ -33,7 +64,8 @@ frontend, then execute. Get it wrong and the UI desyncs.
 
 | Situation | Action |
 |-----------|--------|
-| Need to read data/state | Use recipes in [scratchpad.md](reference/scratchpad.md) |
+| Need to find running sessions | List sessions |
+| Need to read data/state | Use recipes in [scratchpad.md](reference/scratchpad.md) via execute code |
 | Need to create/edit/move/delete cells | Follow the scratchpad-to-cell workflow below, then use [cell-operations.md](reference/cell-operations.md) |
 | Unsure what API to use | See **Discovering the API** in [kernel-api.md](reference/kernel-api.md) |
 | Import path fails | See **Discovering the API** in [kernel-api.md](reference/kernel-api.md) |
@@ -54,7 +86,7 @@ real bugs before the user sees them.
    print(f"defs={cell.defs}, refs={cell.refs}")
    ```
    See `compile-check` in [scratchpad.md](reference/scratchpad.md) for full recipe.
-3. **Test in scratchpad** — run the code via `execute_code` to confirm it works. If it's expensive (network request, large query), test on a subset (smaller input, LIMIT clause, fewer params)
+3. **Test in scratchpad** — execute the code to confirm it works. If it's expensive (network request, large query), test on a subset (smaller input, LIMIT clause, fewer params)
 4. **If the code contains a network request or query**: consider asking the user before creating the cell, since execution will happen again when the cell runs. Or structure as two cells (fetch + transform) so the fetch only runs once
 5. **Create the cell** — follow `create-cell` in [cell-operations.md](reference/cell-operations.md)
 

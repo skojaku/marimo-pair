@@ -1,7 +1,7 @@
 # Scratchpad Reference
 
-Recipes for using `execute_code` to inspect notebook state. Results come back
-to you — the user doesn't see them.
+Recipes for executing code to inspect notebook state. Results come back to
+you — the user doesn't see them.
 
 The scratchpad is just Python. You can `print(df.head())` or run any expression
 directly — the notebook's cell variables are already in scope. The preamble
@@ -9,7 +9,7 @@ below is only needed when you want to inspect kernel internals (graph structure,
 cell metadata, defs/refs).
 
 **Scoping:** Variables defined in the scratchpad do not persist between
-`execute_code` calls. Only notebook cell variables survive. Do all dependent
+execute-code calls. Only notebook cell variables survive. Do all dependent
 work in a single call, and avoid polluting the kernel namespace.
 
 ## Contents

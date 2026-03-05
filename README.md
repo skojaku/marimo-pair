@@ -3,7 +3,9 @@
 > [!WARNING]
 > This is an early-stage, experimental skill for use with [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Expect rough edges — feedback and contributions welcome.
 
-A [Claude Code skill](https://docs.anthropic.com/en/docs/claude-code/skills) for pair programming in [marimo](https://marimo.io) notebooks via MCP.
+A [Claude Code skill](https://docs.anthropic.com/en/docs/claude-code/skills) for pair programming in [marimo](https://marimo.io) notebooks.
+
+You can interact with a running notebook via **bundled scripts** or via **MCP** tools. The scripts are the default — they work everywhere with no extra setup beyond `bash`, `curl`, and `jq`.
 
 ## What it does
 
@@ -17,8 +19,8 @@ Key behaviors:
 
 ## Prerequisites
 
-- A running [marimo](https://marimo.io) notebook
-- The marimo MCP server connected to Claude Code (provides `get_active_notebooks` and `execute_code` tools)
+- A running [marimo](https://marimo.io) notebook (started with `--no-token --no-skew-protection`)
+- `bash`, `curl`, and `jq` available on `PATH`
 
 ## Install
 
@@ -37,21 +39,19 @@ Claude Code automatically discovers skills from these directories — no further
 ## Quick start
 
 ```bash
-# Add the marimo MCP server to Claude Code
-claude mcp add --transport http marimo "http://localhost:2718/mcp/server"
+# Start a marimo notebook
+marimo edit notebook.py --no-token --no-skew-protection
 
-# Start marimo in headless code-mode with MCP enabled
-uvx --with="marimo[mcp,recommended]" \
-  marimo edit notebook.py \
-  --mcp="code-mode" \
-  --no-token \
-  --headless \
-  --port 2718
+# In another terminal, verify the session is discoverable
+bash scripts/list-sessions.sh
+
+# Execute code in the running session
+bash scripts/execute-code.sh "print('hello')"
 ```
 
 ## Usage
 
-Start a marimo notebook, then talk to Claude Code. The skill activates automatically when it detects an active marimo session.
+Start a marimo notebook, then talk to Claude Code. The skill activates automatically when it detects a running marimo session.
 
 ```
 > let's explore this dataframe
