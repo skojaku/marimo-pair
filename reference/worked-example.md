@@ -4,9 +4,9 @@ This walks through the scratchpad-to-cell workflow from SKILL.md.
 
 ## Step 1 — Investigate via scratchpad
 
-Run `execute_code` calls to understand the notebook state. These are invisible
-to the user — just you gathering info. Cell variables are already in scope, so
-you can inspect them directly.
+Run `marimo session exec -c` calls to understand the notebook state. These are
+invisible to the user — just you gathering info. Cell variables are already in
+scope, so you can inspect them directly.
 
 ```python
 # What variables exist?

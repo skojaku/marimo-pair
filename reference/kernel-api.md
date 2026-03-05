@@ -12,7 +12,7 @@ cell-mutation imports when you need to create, update, or delete cells.
 ## Discovering the API
 
 If an import fails or you need something not listed in the reference files,
-explore from within `execute_code`:
+explore from within `marimo session exec -c`:
 
 ```python
 import marimo
