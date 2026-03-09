@@ -72,6 +72,7 @@ frontend, then execute. Get it wrong and the UI desyncs.
 | Unsure what API to use | See **Discovering the API** in [kernel-api.md](reference/kernel-api.md) |
 | Import path fails | See **Discovering the API** in [kernel-api.md](reference/kernel-api.md) |
 | Need a custom visualization or interactive widget | See [rich-representations.md](reference/rich-representations.md) (`_display_()` for display-only, anywidget for bidirectional) |
+| Widget trait should drive downstream cells | `mo.state()` + `.observe()` — see [Reactive anywidgets](reference/rich-representations.md#reactive-anywidgets-in-marimo) |
 | Want a full walkthrough | Read [worked-example.md](reference/worked-example.md) |
 
 ## The Scratchpad-to-Cell Workflow
@@ -97,7 +98,8 @@ not routine cell operations.
 
 ### Adding a new cell
 
-- **Compile-check** — verify syntax, defs, and refs
+- **Compile-check** — verify syntax, defs, and refs. Check new cell's `defs`
+  against existing cells — duplicate defs break the graph.
 - **Test in scratchpad** — ALWAYS run the code to validate it works at runtime.
   If expensive, test on a subset or ask the user.
 - **Create the cell** — this is just the mechanical step. If the above passed,
