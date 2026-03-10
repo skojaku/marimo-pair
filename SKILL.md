@@ -73,6 +73,7 @@ frontend, then execute. Get it wrong and the UI desyncs.
 | Import path fails | See **Discovering the API** in [kernel-api.md](reference/kernel-api.md) |
 | Need a custom visualization or interactive widget | See [rich-representations.md](reference/rich-representations.md) (`_display_()` for display-only, anywidget for bidirectional) |
 | Widget trait should drive downstream cells | `mo.state()` + `.observe()` — see [Reactive anywidgets](reference/rich-representations.md#reactive-anywidgets-in-marimo) |
+| Need to display a notification to the user (toast, banner, focus) | See [notify-user](reference/cell-operations.md#notify-user) in cell-operations |
 | Want a full walkthrough | Read [worked-example.md](reference/worked-example.md) |
 
 ## The Scratchpad-to-Cell Workflow
