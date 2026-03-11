@@ -15,5 +15,5 @@ npx skills add marimo-team/marimo-pair
 
 # or
 
-uvx deno -A npx:skills add marimo-team/marimo-pair
+uvx deno -A npm:skills add marimo-team/marimo-pair
 ```
