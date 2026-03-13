@@ -103,20 +103,25 @@ are a bad experience. Runtime errors in the scratchpad are invisible learning.
 cycles — but not wrong arguments, missing methods, or type mismatches. Don't
 let a passing compile-check give you false confidence.
 
-**ALWAYS compile-check AND test in the scratchpad before creating or editing a
-cell.** No exceptions unless the user explicitly says to skip testing. If the
-code is expensive, test on a subset — or if that's not possible, ask the user.
+**ALWAYS test in the scratchpad before creating or editing a cell.** No
+exceptions unless the user explicitly says to skip testing. If the code is
+expensive, test on a subset — or if that's not possible, ask the user.
 
-If both pass, do the cell operation immediately — in the same execute-code call
-when possible. Never pause to ask; the only reason to pause is ambiguous intent.
+The `async with` context manager automatically compile-checks on exit —
+syntax errors, multiply-defined names, and cycles are caught before any graph
+mutation occurs. If the check fails, the operation is rejected and you get an
+error. You don't need to compile-check manually.
+
+If testing passes, do the cell operation immediately — in the same execute-code
+call when possible. Never pause to ask; the only reason to pause is ambiguous
+intent.
 
 ### Steps (same for add or edit)
 
 1. If editing, **read** the current cell code from the graph
-2. **Compile-check** — verify syntax, defs, refs, no cycles. For new cells,
-   check `defs` against existing cells — duplicate defs break the graph.
-3. **Test in scratchpad** — run the code to validate at runtime
-4. **Create or update the cell** — the mechanical step. See
+2. **Test in scratchpad** — run the code to validate at runtime
+3. **Create or update the cell** — the context manager auto-compile-checks.
+   If it fails, fix the code and retry. See
    [execute-code.md](reference/execute-code.md#cell-operations--mutating-the-notebook).
 
 Keep cells small and focused. Use `code_is_stale=True` to send a draft for
@@ -149,7 +154,7 @@ Always try the code API first. Only fall back to external CLIs (`uv add`,
 Skip these and the UI breaks:
 
 - Notify the frontend before executing cell operations — use `_code_mode`.
-- Compile-check before creating or editing cells.
+- The `async with` context manager auto-compile-checks — if it rejects, fix and retry.
 - Clean up dry-run registrations — scratchpad side effects persist in the graph.
 - Don't write to the `.py` file directly — the kernel owns it.
 

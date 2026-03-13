@@ -117,55 +117,56 @@ export default () => {
 import anywidget
 import traitlets
 
+_TIMER_ESM = """
+export default () => {
+  return {
+    initialize({ model }) {
+      const id = setInterval(() => {
+        if (model.get("running")) {
+          model.set("seconds", model.get("seconds") + 1);
+          model.save_changes();
+        }
+      }, 1000);
+      return () => clearInterval(id);
+    },
+    render({ model, el }) {
+      const controller = new AbortController();
+      const { signal } = controller;
+
+      const span = document.createElement("span");
+      span.style.cssText = "font: 24px monospace;";
+
+      const btn = document.createElement("button");
+      btn.style.cssText = "margin-left: 8px; cursor: pointer;";
+
+      function update() {
+        const s = model.get("seconds");
+        const mm = String(Math.floor(s / 60)).padStart(2, "0");
+        const ss = String(s % 60).padStart(2, "0");
+        span.textContent = `${mm}:${ss}`;
+        btn.textContent = model.get("running") ? "⏸" : "▶";
+      }
+
+      model.on("change:seconds", update);
+      model.on("change:running", update);
+
+      btn.addEventListener("click", () => {
+        model.set("running", !model.get("running"));
+        model.save_changes();
+      }, { signal });
+
+      update();
+      el.append(span, btn);
+      return () => controller.abort();
+    }
+  };
+};
+"""
+
 class Timer(anywidget.AnyWidget):
     seconds = traitlets.Int(0).tag(sync=True)
     running = traitlets.Bool(True).tag(sync=True)
-
-    _esm = """
-    export default () => {
-      return {
-        initialize({ model }) {
-          const id = setInterval(() => {
-            if (model.get("running")) {
-              model.set("seconds", model.get("seconds") + 1);
-              model.save_changes();
-            }
-          }, 1000);
-          return () => clearInterval(id);
-        },
-        render({ model, el }) {
-          const controller = new AbortController();
-          const { signal } = controller;
-
-          const span = document.createElement("span");
-          span.style.cssText = "font: 24px monospace;";
-
-          const btn = document.createElement("button");
-          btn.style.cssText = "margin-left: 8px; cursor: pointer;";
-
-          function update() {
-            const s = model.get("seconds");
-            const mm = String(Math.floor(s / 60)).padStart(2, "0");
-            const ss = String(s % 60).padStart(2, "0");
-            span.textContent = `${mm}:${ss}`;
-            btn.textContent = model.get("running") ? "⏸" : "▶";
-          }
-
-          model.on("change:seconds", update);
-          model.on("change:running", update);
-
-          btn.addEventListener("click", () => {
-            model.set("running", !model.get("running"));
-            model.save_changes();
-          }, { signal });
-
-          update();
-          el.append(span, btn);
-          return () => controller.abort();
-        }
-      };
-    };
-    """
+    _esm = _TIMER_ESM
 ```
 
 ### CDN dependencies

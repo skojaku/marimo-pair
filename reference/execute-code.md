@@ -54,35 +54,6 @@ for name, val in kernel.globals.items():
     print(name, type(val).__name__, getattr(val, 'shape', ''))
 ```
 
-### compile-check
-
-Syntax + defs/refs validation without execution. Cheap — always do this before
-creating or editing a cell. `compile_cell` does not register the cell in the
-graph, so there is nothing to clean up afterward.
-
-```python
-from marimo._ast.compiler import compile_cell
-from marimo._types.ids import CellId_t
-
-cell = compile_cell(code, cell_id=CellId_t("test"))
-print(f"defs={cell.defs}, refs={cell.refs}")
-```
-
-### dry-run
-
-Register a cell in the graph to check for conflicts and cycles, then clean up.
-
-```python
-from marimo._ast.compiler import compile_cell
-from marimo._types.ids import CellId_t
-
-cell_id = CellId_t("dry_run")
-cell = compile_cell(code, cell_id=cell_id)
-graph.register_cell(cell_id, cell)
-print(graph.get_multiply_defined(), graph.cycles)
-graph.delete_cell(cell_id)  # ALWAYS clean up
-```
-
 ### ui-state
 
 You can read and set the state of interactive elements from the scratchpad.
@@ -92,10 +63,10 @@ move a slider, enter text — without the user clicking anything.
 **marimo UI elements** (`mo.ui.*`):
 
 ```python
-from marimo._plugins.ui._impl.input import set_ui_element_value
+import marimo._code_mode as cm
 
-# Set a UI element's value by its object ID
-set_ui_element_value(element._id, new_value)
+async with cm.get_context() as ctx:
+    ctx.set_ui_value(element, new_value)
 ```
 
 **anywidgets** (traitlets are bidirectional — read and write directly):
@@ -116,3 +87,20 @@ see [rich-representations.md](rich-representations.md#reactive-anywidgets-in-mar
 Cell operations live in `marimo._code_mode`. The module is self-documenting —
 use `dir(ctx)` and `help()` to explore. **You MUST use `async with`** (see
 top of SKILL.md).
+
+### async with — create, edit, delete cells
+
+All mutations go through an `AsyncCodeModeContext`. Operations are queued
+during the block and applied atomically on exit. A dry-run compile check
+runs automatically — syntax errors, multiply-defined names, and cycles are
+caught before any graph mutations occur.
+
+```python
+import marimo._code_mode as cm
+
+async with cm.get_context() as ctx:
+    cid = ctx.create_cell("x = 1")
+    ctx.create_cell("y = x + 1", after=cid)
+    ctx.update_cell("my_cell", code="z = 42")
+    ctx.delete_cell("old_cell")
+```
