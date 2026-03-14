@@ -35,11 +35,17 @@ The marimo server must be running with token and skew protection disabled:
 marimo edit notebook.py --no-token --no-skew-protection
 ```
 
+Figure out the best way to invoke `marimo` from the current directory —
+if it's a project with a managed environment, use that (e.g., `uv run marimo`).
+
 By default, omit `--headless` so marimo auto-opens the browser. If you use
 `--headless`, offer to open it with `open http://localhost:<port>`.
 
 If no servers are found, offer to start marimo as a background task. Be
 eager — suggest it proactively. The user may also prefer to start it themselves.
+
+**If you start the server**, the browser opens but cells aren't running yet —
+call `bash scripts/instantiate.sh` after the server is up to run all cells.
 
 ## How to Discover Servers and Execute Code
 
@@ -48,6 +54,7 @@ Two operations: **discover servers** and **execute code**.
 | Operation | Script | MCP |
 |-----------|--------|-----|
 | Discover servers | `bash scripts/discover-servers.sh` | `list_sessions()` tool |
+| Instantiate notebook | `bash scripts/instantiate.sh` | — |
 | Execute code | `bash scripts/execute-code.sh -c "code"` | `execute_code(code=..., session_id=...)` tool |
 | Execute code (complex) | `bash scripts/execute-code.sh /tmp/code.py` | same |
 
