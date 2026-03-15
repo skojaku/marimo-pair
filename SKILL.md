@@ -38,8 +38,10 @@ marimo edit notebook.py --no-token --no-skew-protection
 Figure out the best way to invoke `marimo` from the current directory —
 if it's a project with a managed environment, use that (e.g., `uv run marimo`).
 
-By default, omit `--headless` so marimo auto-opens the browser. If you use
-`--headless`, offer to open it with `open http://localhost:<port>`.
+**Do NOT use `--headless` unless the user asks for it.** Omitting it lets
+marimo auto-open the browser, which is the expected pairing experience. If the
+user explicitly requests headless, offer to open it with
+`open http://localhost:<port>`.
 
 If no servers are found, offer to start marimo as a background task. Be
 eager — suggest it proactively. The user may also prefer to start it themselves.
@@ -71,6 +73,10 @@ only — never for runtime. Use `"""` for ESM inside `'''` for the cell code.
 
 The `code_mode` API can change between marimo versions. Your **first
 execute-code call** should discover what the running server actually provides:
+
+**Never guess method signatures.** Always `help(ctx.method_name)` before
+calling a method for the first time — parameter names and defaults change
+across versions.
 
 ```python
 import marimo._code_mode as cm
@@ -137,8 +143,9 @@ intent.
    If it fails, fix the code and retry. See
    [execute-code.md](reference/execute-code.md#cell-operations--mutating-the-notebook).
 
-Keep cells small and focused. Use `code_is_stale=True` to send a draft for
-user review without executing.
+Keep cells small and focused — prefer splitting computation across cells and
+extracting helpers over large monolithic cells. Hide code by default so the
+notebook reads as a clean document.
 
 ## Philosophy
 
@@ -153,19 +160,13 @@ Before making choices, look for signal — notebook imports, `pyproject.toml`,
 `sys.modules`, existing cells, directory structure. Follow existing patterns.
 Take agency over things you're confident in. If you're not sure, ask.
 
-## Installing Packages
-
-The `code_mode` context exposes package installation capabilities. Explore
-`dir(ctx)` and `help()` to find the right method — don't guess the API, as it
-may change across marimo versions.
-
-Always try the code API first. Only fall back to external CLIs (`uv add`,
-`uv pip install`, etc.) if the API is unavailable or fails.
-
 ## Guard Rails
 
 Skip these and the UI breaks:
 
+- **Install packages via `ctx.install_packages()`, not `uv add` or `pip`.**
+  The code API handles kernel restarts and dependency resolution correctly.
+  Only fall back to external CLIs if the API is unavailable or fails.
 - **Custom widget = anywidget.** When the user asks for a "custom widget",
   "custom view", or any bespoke visual component, build an anywidget with
   HTML/CSS/JS — do NOT compose `mo.ui` elements. Composed `mo.ui` is fine
