@@ -46,6 +46,10 @@ user explicitly requests headless, offer to open it with
 If no servers are found, offer to start marimo as a background task. Be
 eager — suggest it proactively. The user may also prefer to start it themselves.
 
+**Always discover servers before starting a new one.** Background task
+"completed" notifications do not mean the server died — check the output
+or run discover before starting another.
+
 ## How to Discover Servers and Execute Code
 
 Two operations: **discover servers** and **execute code**.
@@ -112,6 +116,7 @@ frontend, then execute. Get it wrong and the UI desyncs.
 | Need a custom visualization or interactive widget | See [rich-representations.md](reference/rich-representations.md) (`_display_()` for display-only, anywidget for bidirectional) |
 | Widget trait should drive downstream cells | `mo.state()` + `.observe()` — see [Reactive anywidgets](reference/rich-representations.md#reactive-anywidgets-in-marimo) |
 | Need to display a notification to the user (toast, banner, focus) | See [other operations](reference/execute-code.md#other-operations) |
+| User asks to improve/optimize/clean up the notebook | See [notebook-improvements.md](reference/notebook-improvements.md) |
 
 ## The Scratchpad-to-Cell Workflow
 
@@ -178,6 +183,9 @@ Skip these and the UI breaks:
 - Clean up dry-run registrations — scratchpad side effects persist in the graph.
 - Don't write to the `.py` file directly — the kernel owns it.
 - **No temp-file deps in cells.** `pathlib.Path("/tmp/...")` in cell code is a bug.
+- **No empty cells.** Before creating a cell, check for existing empty cells
+  and `edit_cell` into them instead. On startup, use the default empty cell
+  rather than appending. Clean up any cells that end up empty after edits.
 
 Confirm with the user before:
 
