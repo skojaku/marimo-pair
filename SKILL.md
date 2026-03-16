@@ -125,6 +125,7 @@ frontend, then execute. Get it wrong and the UI desyncs.
 | Need to install a package | Use the `code_mode` context — see [Installing Packages](#installing-packages) |
 | Unsure what API to use | See **Discovering the API** in [execute-code.md](reference/execute-code.md#discovering-the-api) |
 | Import path fails | See **Discovering the API** in [execute-code.md](reference/execute-code.md#discovering-the-api) |
+| Package installed but module says it's missing | See [gotchas.md](reference/gotchas.md) — cached module proxies |
 | Need a custom visualization or interactive widget | See [rich-representations.md](reference/rich-representations.md) (`_display_()` for display-only, anywidget for bidirectional) |
 | Widget trait should drive downstream cells | `mo.state()` + `.observe()` — see [Reactive anywidgets](reference/rich-representations.md#reactive-anywidgets-in-marimo) |
 | Need to display a notification to the user (toast, banner, focus) | See [other operations](reference/execute-code.md#other-operations) |
