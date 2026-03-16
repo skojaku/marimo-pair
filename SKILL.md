@@ -157,7 +157,8 @@ intent.
 
 Keep cells small and focused — prefer splitting computation across cells and
 extracting helpers over large monolithic cells. Hide code by default so the
-notebook reads as a clean document.
+notebook reads as a clean document. Don't bother naming cells while working —
+names are optional and easier to add later when reviewing the notebook.
 
 ## Philosophy
 
@@ -193,6 +194,9 @@ Skip these and the UI breaks:
 - **No empty cells.** Before creating a cell, check for existing empty cells
   and `edit_cell` into them instead. On startup, use the default empty cell
   rather than appending. Clean up any cells that end up empty after edits.
+- **Don't worry about cell names.** Names are not required for cells and are
+  hard to come up with while working. Skip them by default — it's easier
+  to add meaningful names later when reviewing the notebook as a whole.
 
 Confirm with the user before:
 
