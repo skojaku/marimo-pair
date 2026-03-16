@@ -90,16 +90,20 @@ top of SKILL.md).
 
 ### async with — create, edit, delete cells
 
-All mutations go through an `AsyncCodeModeContext`. Operations are queued
-during the block and applied atomically on exit. A dry-run compile check
-runs automatically — syntax errors, multiply-defined names, and cycles are
-caught before any graph mutations occur.
+All mutations go through an `AsyncCodeModeContext`. The `async with` block
+is the only async part — **all `ctx.*` methods are synchronous**. They queue
+operations during the block and the context manager applies them atomically
+on exit. Do NOT `await` individual methods like `ctx.create_cell()` or
+`ctx.install_packages()` — they are plain sync calls that return immediately.
+
+A dry-run compile check runs automatically on exit — syntax errors,
+multiply-defined names, and cycles are caught before any graph mutations occur.
 
 ```python
 import marimo._code_mode as cm
 
 async with cm.get_context() as ctx:
-    # Appends to end by default
+    # All methods below are sync — no await!
     ctx.create_cell("x = 1")
     ctx.create_cell("y = x + 1")
 
@@ -108,4 +112,5 @@ async with cm.get_context() as ctx:
 
     ctx.edit_cell("my_cell", code="z = 42")
     ctx.delete_cell("old_cell")
+    ctx.install_packages("pandas", "altair")
 ```

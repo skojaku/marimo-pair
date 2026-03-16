@@ -11,12 +11,19 @@ description: >-
 > **Notebook metaprogramming** lives in `marimo._code_mode`. You **MUST** use
 > `async with` — without it, operations silently do nothing.
 >
+> All `ctx.*` methods (`create_cell`, `edit_cell`, `delete_cell`,
+> `install_packages`, etc.) are **synchronous** — they queue operations
+> and the context manager flushes them on exit. Do **NOT** `await` them.
+>
 > ```python
 > import marimo._code_mode as cm
 >
 > async with cm.get_context() as ctx:
 >     for c in ctx.cells:
 >         print(c.cell_id, c.code[:80])
+>     # sync calls — no await
+>     ctx.create_cell("x = 1")
+>     ctx.install_packages("pandas")
 > ```
 >
 > Explore the API with `dir(ctx)` and `help()` at the start of each session.
