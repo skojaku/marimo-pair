@@ -4,6 +4,13 @@ When the user asks to improve, optimize, or clean up their notebook, scan the
 current cells for these opportunities. Use your judgment — don't over-apply,
 and if you're unsure whether a change is worthwhile, ask the user.
 
+## Cell names
+
+Low priority unless the user asks. `setup` and cells defining
+functions/classes are auto-named by marimo. Beyond that, naming is optional.
+Note that naming markdown cells clutters the UI by showing the cell header
+that's normally hidden.
+
 ## Setup cell
 
 A setup cell is named `"setup"` and is guaranteed to run before all other
