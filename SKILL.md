@@ -38,40 +38,15 @@ The marimo server must be running with token and skew protection disabled.
 
 ### How to invoke marimo
 
-Use the first matching strategy:
-
-| # | Condition | Command | `--sandbox`? |
-|---|-----------|---------|-------------|
-| 1 | **Project exists** — `pyproject.toml` in cwd or parent | `uv run marimo edit notebook.py --no-token --no-skew-protection` | No (project manages deps) |
-| 2 | **No project, `uv` available** | `uvx marimo@latest edit notebook.py --sandbox --no-token --no-skew-protection` | Yes (default) |
-| 3 | **No project, no `uv`** — `marimo` on PATH | `marimo edit notebook.py --sandbox --no-token --no-skew-protection` | Yes (default) |
-
-**Detection steps:**
-1. Check for `pyproject.toml` in cwd or parents → strategy 1
-2. Otherwise check `command -v uv` → strategy 2
-3. Otherwise check `command -v marimo` → strategy 3
-4. If none found, tell the user to install `uv` or `marimo`
-
-**`--sandbox` is the default when there's no project.** Sandbox mode manages
-dependencies in an isolated environment via PEP 723 inline metadata. Only skip
-`--sandbox` when inside a project (strategy 1) or when the user explicitly
-asks to skip it.
-
-**No python file yet?** If the user asks to create a notebook but doesn't
-name one, pick a descriptive filename based on context (e.g., `exploration.py`,
-`analysis.py`, `dashboard.py`). Don't ask — just pick something reasonable.
+marimo must be invoked with `--no-token --no-skew-protection` to be
+discoverable. The right way to invoke it depends on context (project tooling,
+global install, sandbox mode). See
+[finding-marimo.md](reference/finding-marimo.md) for the full decision tree.
 
 **Do NOT use `--headless` unless the user asks for it.** Omitting it lets
 marimo auto-open the browser, which is the expected pairing experience. If the
 user explicitly requests headless, offer to open it with
 `open http://localhost:<port>`.
-
-If no servers are found, offer to start marimo as a background task. Be
-eager — suggest it proactively. The user may also prefer to start it themselves.
-
-**Always discover servers before starting a new one.** Background task
-"completed" notifications do not mean the server died — check the output
-or run discover before starting another.
 
 ## How to Discover Servers and Execute Code
 
@@ -87,11 +62,25 @@ Scripts auto-discover sessions from the registry on disk. Use `--port` to
 target a specific server when multiple are running. If the server was started
 with `--mcp`, you'll have MCP tools available as an alternative.
 
+### No servers running?
+
+**Always discover before starting.** Background task "completed" notifications
+do not mean the server died — check the output or run discover first.
+
+If no servers are found, read the user's intent — if they want a notebook,
+start one. See [finding-marimo.md](reference/finding-marimo.md).
+
+If there's no `.py` file yet, pick a descriptive filename based on context
+(e.g., `exploration.py`, `analysis.py`, `dashboard.py`). Don't ask — just
+pick something reasonable.
+
 **Use a file for complex code.** When code contains quotes, backticks,
 `${}` template literals, or multiline strings (common with anywidget ESM
 modules), write the code to a temp file with the Write tool first, then pass
 the file path as a positional argument. This avoids shell escaping issues
-entirely.
+entirely. Write temp files under `/tmp/mo-<id>/` where `<id>` is a short
+random ID you pick once per session, to avoid collisions with stale files
+from other sessions.
 
 **Inline ESM in cell code.** Temp files are for `execute-code.sh` transport
 only — never for runtime. Use `"""` for ESM inside `'''` for the cell code.
@@ -185,6 +174,7 @@ Read [rich-representations.md](reference/rich-representations.md) before wiring 
 
 ## References
 
+- [finding-marimo.md](reference/finding-marimo.md) — how to find and invoke the right marimo
 - [gotchas.md](reference/gotchas.md) — cached module proxies and other traps
 - [rich-representations.md](reference/rich-representations.md) — custom widgets and visualizations
 - [notebook-improvements.md](reference/notebook-improvements.md) — improving existing notebooks
