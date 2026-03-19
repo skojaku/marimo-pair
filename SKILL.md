@@ -1,11 +1,10 @@
 ---
 name: marimo-pair
 description: >-
-  Collaboration protocol for pairing with a user through a running marimo
-  notebook via bundled scripts or MCP. Use when the user asks you to work in,
-  build, explore, or modify a marimo notebook — or when you detect a running
-  marimo session by listing sessions. Do NOT use for general Python scripting
-  outside of marimo or for marimo plugin/package development.
+  Work inside a running marimo notebook's kernel — execute code, create cells,
+  and build a notebook as an artifact. Use when the user wants to start a
+  marimo notebook or work in an active marimo session.
+allowed-tools: Bash(bash ${CLAUDE_SKILL_DIR}/scripts/*), Read
 ---
 
 # marimo Pair Programming Protocol
@@ -68,7 +67,10 @@ with `--mcp`, you'll have MCP tools available as an alternative.
 do not mean the server died — check the output or run discover first.
 
 If no servers are found, read the user's intent — if they want a notebook,
-start one. See [finding-marimo.md](reference/finding-marimo.md).
+start one. **Always start marimo as a background task** (using
+`run_in_background` on the Bash tool) so the server automatically gets cleaned
+up when the session ends and doesn't block the conversation. See
+[finding-marimo.md](reference/finding-marimo.md).
 
 If there's no `.py` file yet, pick a descriptive filename based on context
 (e.g., `exploration.py`, `analysis.py`, `dashboard.py`). Don't ask — just
