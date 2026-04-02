@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 # Execute code in a running marimo session's scratchpad.
 # No marimo installation required — talks directly to the HTTP API.
-# Requires the server to be started with --no-token.
-#
 # Usage:
-#   execute-code.sh [--port PORT] -c "code"   # inline code
-#   execute-code.sh [--port PORT] script.py    # code from file
-#   execute-code.sh [--port PORT] <<< "code"   # stdin (here-string)
-#   execute-code.sh [--port PORT] <<'EOF'       # stdin (heredoc)
+#   execute-code.sh [--port PORT] [--token TOKEN] -c "code"   # inline code
+#   execute-code.sh [--port PORT] [--token TOKEN] script.py    # code from file
+#   execute-code.sh [--port PORT] [--token TOKEN] <<< "code"   # stdin (here-string)
+#   execute-code.sh [--port PORT] [--token TOKEN] <<'EOF'       # stdin (heredoc)
 #     code
 #   EOF
+#   execute-code.sh --url URL [--token TOKEN] -c "code"        # skip discovery, hit URL directly
 set -euo pipefail
 
 # Optional eval logging: set EXECUTE_CODE_LOG to a file path to record each call
@@ -19,12 +18,16 @@ fi
 
 port=""
 code=""
+url=""
+token=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --port) port="$2"; shift 2 ;;
-    -c)     code="$2"; shift 2 ;;
-    -*)     echo "Unknown option: $1" >&2; exit 1 ;;
-    *)      break ;;
+    --port)  port="$2"; shift 2 ;;
+    --url)   url="$2"; shift 2 ;;
+    --token) token="$2"; shift 2 ;;
+    -c)      code="$2"; shift 2 ;;
+    -*)      echo "Unknown option: $1" >&2; exit 1 ;;
+    *)       break ;;
   esac
 done
 
@@ -35,70 +38,80 @@ elif [[ $# -gt 0 ]]; then
 elif [[ ! -t 0 ]]; then
   code=$(cat)
 else
-  echo "Usage: execute-code.sh [--port PORT] -c 'code'" >&2
-  echo "       execute-code.sh [--port PORT] script.py" >&2
-  echo "       echo 'code' | execute-code.sh [--port PORT]" >&2
+  echo "Usage: execute-code.sh [--port PORT | --url URL] [--token TOKEN] -c 'code'" >&2
+  echo "       execute-code.sh [--port PORT | --url URL] [--token TOKEN] script.py" >&2
+  echo "       echo 'code' | execute-code.sh [--port PORT | --url URL] [--token TOKEN]" >&2
   exit 1
 fi
 
-# Locate the servers directory
-if [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
-  servers_dir="$HOME/.marimo/servers"
+if [[ -n "$url" ]]; then
+  base="${url%/}"
 else
-  servers_dir="${XDG_STATE_HOME:-$HOME/.local/state}/marimo/servers"
-fi
-
-# Find a live registry entry
-entry=""
-count=0
-for f in "$servers_dir"/*.json; do
-  [[ -e "$f" ]] || continue
-
-  pid=$(jq -r '.pid' "$f" 2>/dev/null) || continue
-  if ! kill -0 "$pid" 2>/dev/null; then
-    rm -f "$f"
-    continue
+  # Locate the servers directory
+  if [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
+    servers_dir="$HOME/.marimo/servers"
+  else
+    servers_dir="${XDG_STATE_HOME:-$HOME/.local/state}/marimo/servers"
   fi
 
-  e=$(cat "$f")
-
-  if [[ -n "$port" ]]; then
-    e_port=$(echo "$e" | jq -r '.port')
-    if [[ "$e_port" == "$port" ]]; then
-      entry="$e"
-      count=1
-      break
-    fi
-    continue
-  fi
-
-  entry="$e"
-  count=$((count + 1))
-done
-
-if [[ $count -eq 0 ]]; then
-  echo "No running marimo instances found." >&2
-  exit 1
-fi
-
-if [[ $count -gt 1 ]]; then
-  echo "Multiple instances found. Use --port to specify:" >&2
+  # Find a live registry entry
+  entry=""
+  count=0
   for f in "$servers_dir"/*.json; do
     [[ -e "$f" ]] || continue
+
     pid=$(jq -r '.pid' "$f" 2>/dev/null) || continue
-    kill -0 "$pid" 2>/dev/null || continue
-    jq -r '.server_id' "$f" >&2
+    if ! kill -0 "$pid" 2>/dev/null; then
+      rm -f "$f"
+      continue
+    fi
+
+    e=$(cat "$f")
+
+    if [[ -n "$port" ]]; then
+      e_port=$(echo "$e" | jq -r '.port')
+      if [[ "$e_port" == "$port" ]]; then
+        entry="$e"
+        count=1
+        break
+      fi
+      continue
+    fi
+
+    entry="$e"
+    count=$((count + 1))
   done
-  exit 1
+
+  if [[ $count -eq 0 ]]; then
+    echo "No running marimo instances found." >&2
+    exit 1
+  fi
+
+  if [[ $count -gt 1 ]]; then
+    echo "Multiple instances found. Use --port to specify:" >&2
+    for f in "$servers_dir"/*.json; do
+      [[ -e "$f" ]] || continue
+      pid=$(jq -r '.pid' "$f" 2>/dev/null) || continue
+      kill -0 "$pid" 2>/dev/null || continue
+      jq -r '.server_id' "$f" >&2
+    done
+    exit 1
+  fi
+
+  host=$(echo "$entry" | jq -r '.host')
+  e_port=$(echo "$entry" | jq -r '.port')
+  base_url=$(echo "$entry" | jq -r '.base_url')
+  base="http://${host}:${e_port}${base_url}"
 fi
 
-host=$(echo "$entry" | jq -r '.host')
-e_port=$(echo "$entry" | jq -r '.port')
-base_url=$(echo "$entry" | jq -r '.base_url')
-base="http://${host}:${e_port}${base_url}"
+# Build optional auth header
+auth_args=()
+if [[ -n "$token" ]]; then
+  auth_args+=(-H "Authorization: Bearer ${token}")
+fi
 
 # Discover session ID
-sessions_resp=$(curl -sf "${base}/api/sessions") || {
+sessions_resp=$(curl -sf "${auth_args[@]+"${auth_args[@]}"}" "${base}/api/sessions") || {
   echo "Failed to connect to marimo server at ${base}" >&2
   exit 1
 }
@@ -154,6 +167,7 @@ while IFS= read -r line && [[ "$done_received" == false ]]; do
 done < <(curl -sN -X POST "${base}/api/kernel/execute" \
   -H "Content-Type: application/json" \
   -H "Marimo-Session-Id: ${session_id}" \
+  ${auth_args[@]+"${auth_args[@]}"} \
   -d "$(jq -n --arg c "$code" '{code: $c}')" \
 )
 

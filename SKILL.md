@@ -33,7 +33,8 @@ to the running notebook.
 
 ## Prerequisites
 
-The marimo server must be running with token and skew protection disabled.
+The marimo server must be running with skew protection disabled. If the server
+uses token auth, pass the token via `--token` on the execute script.
 
 ### How to invoke marimo
 
@@ -56,10 +57,16 @@ Two operations: **discover servers** and **execute code**.
 | Discover servers | `bash scripts/discover-servers.sh` | `list_sessions()` tool |
 | Execute code | `bash scripts/execute-code.sh -c "code"` | `execute_code(code=..., session_id=...)` tool |
 | Execute code (multiline) | `bash scripts/execute-code.sh <<'EOF'` | same |
+| Execute code (direct URL) | `bash scripts/execute-code.sh --url URL -c "code"` | same (with `url` param) |
 
 Scripts auto-discover sessions from the registry on disk. Use `--port` to
-target a specific server when multiple are running. If the server was started
-with `--mcp`, you'll have MCP tools available as an alternative.
+target a specific server when multiple are running, or `--url` to skip
+discovery entirely and hit a server URL directly (e.g.
+`--url http://localhost:2718`). `--url` is the only way to connect to
+remote servers since auto-discovery only reads the local registry. Use
+`--token` to authenticate when the server has token auth enabled. If the
+server was started with `--mcp`, you'll have MCP tools available as an
+alternative.
 
 ### No servers running?
 
@@ -90,6 +97,9 @@ EOF
 
 # file
 bash scripts/execute-code.sh /tmp/code.py
+
+# direct URL (skips auto-discovery and works with remote servers)
+bash scripts/execute-code.sh --url http://localhost:2718 -c "1 + 1"
 ```
 
 ## Executing Code
