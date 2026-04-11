@@ -1,6 +1,6 @@
 <h1>
 <p align="center">
-  marimo-pair
+  /marimo-pair
 </h1>
 <p align="center">
   reactive Python notebooks as environments for agents
