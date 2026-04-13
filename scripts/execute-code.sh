@@ -60,7 +60,9 @@ if [[ -n "$url" ]]; then
   esac
 else
   # Locate the servers directory
+  is_windows=false
   if [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
+    is_windows=true
     servers_dir="$HOME/.marimo/servers"
   else
     servers_dir="${XDG_STATE_HOME:-$HOME/.local/state}/marimo/servers"
@@ -73,9 +75,14 @@ else
     [[ -e "$f" ]] || continue
 
     pid=$(jq -r '.pid' "$f" 2>/dev/null) || continue
-    if ! kill -0 "$pid" 2>/dev/null; then
-      rm -f "$f"
-      continue
+    # Skip the liveness check on Windows: Git Bash/MSYS2 `kill` operates on
+    # Cygwin PIDs, not the native Windows PIDs marimo writes, so it would
+    # treat every live server as dead and delete valid registry entries.
+    if [[ "$is_windows" == false ]]; then
+      if ! kill -0 "$pid" 2>/dev/null; then
+        rm -f "$f"
+        continue
+      fi
     fi
 
     e=$(cat "$f")
@@ -104,7 +111,9 @@ else
     for f in "$servers_dir"/*.json; do
       [[ -e "$f" ]] || continue
       pid=$(jq -r '.pid' "$f" 2>/dev/null) || continue
-      kill -0 "$pid" 2>/dev/null || continue
+      if [[ "$is_windows" == false ]]; then
+        kill -0 "$pid" 2>/dev/null || continue
+      fi
       jq -r '.server_id' "$f" >&2
     done
     exit 1
