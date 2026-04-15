@@ -18,20 +18,31 @@ if [[ ! -d "$servers_dir" ]]; then
   exit 0
 fi
 
+# Liveness check. On POSIX, `kill -0 $pid` is cheap and reliable. On Windows
+# (Git Bash/MSYS2) `kill` operates on Cygwin PIDs, not the native Windows PIDs
+# marimo writes, so fall back to an HTTP probe against marimo's /health.
+check_live() {
+  local f="$1"
+  if [[ "$is_windows" == false ]]; then
+    local pid
+    pid=$(jq -r '.pid' "$f" 2>/dev/null) || return 1
+    kill -0 "$pid" 2>/dev/null
+  else
+    local host port base_url
+    host=$(jq -r '.host' "$f" 2>/dev/null) || return 1
+    port=$(jq -r '.port' "$f" 2>/dev/null) || return 1
+    base_url=$(jq -r '.base_url' "$f" 2>/dev/null) || return 1
+    curl -sf --max-time 1 "http://${host}:${port}${base_url}/health" >/dev/null 2>&1
+  fi
+}
+
 results="[]"
 for f in "$servers_dir"/*.json; do
   [[ -e "$f" ]] || continue
 
-  pid=$(jq -r '.pid' "$f" 2>/dev/null) || continue
-
-  # Skip the liveness check on Windows: Git Bash/MSYS2 `kill` operates on
-  # Cygwin PIDs, not the native Windows PIDs marimo writes, so it would
-  # treat every live server as dead and delete valid registry entries.
-  if [[ "$is_windows" == false ]]; then
-    if ! kill -0 "$pid" 2>/dev/null; then
-      rm -f "$f"
-      continue
-    fi
+  if ! check_live "$f"; then
+    rm -f "$f"
+    continue
   fi
 
   entry=$(jq '.' "$f" 2>/dev/null) || continue
