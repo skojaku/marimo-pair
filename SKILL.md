@@ -16,75 +16,30 @@ browser while you work through bundled scripts or MCP.
 
 ## Multi-Agent Protocol
 
-Use a lead + subagent split to keep your context clean. The lead plans and
-talks to the user. Subagents do the kernel work — their SSE outputs, error
-traces, and exploration noise never reach the lead's context.
+Lead plans + talks to user. Subagents do kernel work (SSE noise stays out of lead context).
 
-### Lead agent responsibilities
-
-- Understand intent, plan which cells to create
-- Spawn a **Handshake subagent** once at the start of each session
-- Spawn an **Executor subagent** per cell task
-- Spawn an **Inspector subagent** on demand when you need kernel state
-- Report outcomes to the user
-
-### Handshake subagent
-
-Spawn once. Pass this prompt (fill in `SKILL_DIR`):
-
+**Handshake** — spawn once, pass:
 ```
-You are a marimo handshake agent. Skill dir: SKILL_DIR
-
-1. Run: bash SKILL_DIR/scripts/discover-servers.sh
-   If no servers found, start one (see reference/finding-marimo.md) as a
-   background task, wait ~3s, then re-run discover.
-2. Pick a server. If multiple, pick the first.
-3. Inspect the ctx API:
-     bash SKILL_DIR/scripts/execute-code.sh --port PORT -c "import marimo._code_mode as cm; help(cm)"
-4. Return ONLY this JSON (no other text):
-   {"port": 1234, "session_id": "abc", "ctx_methods": ["create_cell", "edit_cell", "run_cell", ...]}
+Skill dir: SKILL_DIR
+1. bash SKILL_DIR/scripts/discover-servers.sh — start server if none found
+2. bash SKILL_DIR/scripts/execute-code.sh --port PORT -c "import marimo._code_mode as cm; help(cm)"
+Return ONLY: {"port":N,"session_id":"...","ctx_methods":["create_cell","edit_cell","run_cell",...]}
 ```
 
-Store the returned JSON. Pass `port` and `session_id` to every subsequent subagent.
-
-### Executor subagent
-
-Spawn per task. Pass this prompt (fill in `SKILL_DIR`, `PORT`, `SESSION_ID`, `TASK`):
-
+**Executor** — spawn per cell task, pass:
 ```
-You are a marimo executor agent. Skill dir: SKILL_DIR
-Server: port=PORT, session_id=SESSION_ID
-
+Skill dir: SKILL_DIR, port=PORT, session_id=SESSION_ID
 Task: TASK
-
-Use bash SKILL_DIR/scripts/execute-code.sh --port PORT --session SESSION_ID
-to run code in the kernel. To create/edit/run cells use marimo._code_mode:
-
-  async with cm.get_context() as ctx:
-      cid = ctx.create_cell("...")
-      ctx.run_cell(cid)
-
-Use a heredoc for multiline code to avoid shell escaping issues.
-Return ONLY this JSON (no other text):
-{"success": true, "cell_id": "abc", "summary": "one-line description of what was done"}
-On failure: {"success": false, "error": "brief error message"}
+Execute via bash SKILL_DIR/scripts/execute-code.sh --port PORT --session SESSION_ID
+Use async with cm.get_context() as ctx: for cell mutations. Use heredoc for multiline.
+Return ONLY: {"success":true,"cell_id":"...","summary":"..."} or {"success":false,"error":"..."}
 ```
 
-### Inspector subagent
-
-Spawn on demand when you need kernel state. Pass this prompt:
-
+**Inspector** — spawn on demand, pass:
 ```
-You are a marimo inspector agent. Skill dir: SKILL_DIR
-Server: port=PORT, session_id=SESSION_ID
-
-Run this in the kernel and return a compact summary of the results:
-  INSPECTION_CODE
-
-Return ONLY: {"result": "...concise summary..."}
+Skill dir: SKILL_DIR, port=PORT, session_id=SESSION_ID
+Run INSPECTION_CODE in kernel. Return ONLY: {"result":"...concise..."}
 ```
-
----
 
 ## Philosophy
 
